@@ -73,7 +73,10 @@ def get_db():
   
 @app.get("/")
 async def home(request: Request, db: Session = Depends(get_db)):
-    return templates.TemplateResponse("register.html", {"request": request})
+    return responses.RedirectResponse(
+                "/docs", status_code=status.HTTP_302_FOUND
+            )
+    # return templates.TemplateResponse("register.html", {"request": request})
 
 
 @app.get("/login")
@@ -113,6 +116,8 @@ async def register(request: Request, username: str = Form(...), email: str = For
     await form.load_data()
     if await form.is_valid():
         total_row = db.query(models.Users).filter(models.Users.email == email).first()
+        if total_row:
+            return {"message":"user allready exists","username": username, "email":email}
 
         try:
             if total_row == None:
@@ -123,13 +128,16 @@ async def register(request: Request, username: str = Form(...), email: str = For
                 db.add(user)
                 db.commit()
                 upload_photo(email, file)  
-            return responses.RedirectResponse(
-                "/login", status_code=status.HTTP_302_FOUND
-            )  # default is post request, to use get request added status code 302
+            return {"message":"User registered successfully ", "username":username,"email":email,"hashedPassword":hashPassword,"bio":bio}
+
+            # return responses.RedirectResponse(
+            #     "/login", status_code=status.HTTP_302_FOUND
+            # )  # default is post request, to use get request added status code 302
         except IntegrityError:
             form.__dict__.get("errors").append("Duplicate username or email")
-            return templates.TemplateResponse("register.html", form.__dict__)
-    return templates.TemplateResponse("register.html", form.__dict__)
+            # return templates.TemplateResponse("register.html", form.__dict__)
+            return {"message":"something went wrong while creating users !"}
+    return {"message":"User registered successfully ", "username":username,"email":email,"hashedPassword":hashPassword,"bio":bio}
 
 def upload_photo( email : str, file: UploadFile = File(...)):
     # Define the destination directory to save the uploaded files
@@ -154,7 +162,10 @@ def sign_out(request: Request,  db: Session = Depends(get_db)):
     # or any other actions required for sign-out
     #will get the token and extract email from it 
     #delete the entry from userToken
-    email = request.session.pop("username", None)
+    email = request.session.pop("username", False)
+    if not email:
+        return {"You are not looged in Yet !"}
+
 
     userToken = db.query(models.userToken).filter(models.userToken.email == email).first()
     if userToken:
@@ -321,18 +332,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
-fake_users_db = {
-    "johndoe": {
-        "username": "johndoe",
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
-        "disabled": False,
-    }
-}
-
-
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -440,20 +439,6 @@ async def login_for_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
-
-
-@app.get("/users/me/", response_model=User)
-async def read_users_me(
-    current_user: User= Depends(get_current_active_user),db: Session = Depends(get_db)
-):
-    return current_user
-
-
-@app.get("/users/me/items/")
-async def read_own_items(
-    current_user: User= Depends(get_current_active_user),db: Session = Depends(get_db)
-):
-    return [{"item_id": "Foo", "owner": current_user.username}]
 
 
 #login using google and facebook
