@@ -134,10 +134,10 @@ async def register(request: Request, username: str = Form(...), email: str = For
             #     "/login", status_code=status.HTTP_302_FOUND
             # )  # default is post request, to use get request added status code 302
         except IntegrityError:
-            form.__dict__.get("errors").append("Duplicate username or email")
+            # form.__dict__.get("errors").append("Duplicate username or email")
             # return templates.TemplateResponse("register.html", form.__dict__)
             return {"message":"something went wrong while creating users !"}
-    return {"message":"User registered successfully ", "username":username,"email":email,"hashedPassword":hashPassword,"bio":bio}
+    return {"message":"User not created, Please check the error","error":"Username and Password length should be >3 and email should be a valid email (abc@gmail.com)"}
 
 def upload_photo( email : str, file: UploadFile = File(...)):
     # Define the destination directory to save the uploaded files
