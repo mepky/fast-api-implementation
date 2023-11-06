@@ -256,7 +256,7 @@ async def get_binance_data(request: Request):
 
     async with httpx.AsyncClient() as client:
         response = await client.get(url)
-        data = response.json()[:500]
+        data = response.json()[:100]
         # print("data ", data)
     
     return data
